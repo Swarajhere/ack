@@ -1,0 +1,144 @@
+hive
+
+ a) Create the required tables --->
+-- Customer Information Table
+CREATE TABLE customer_info (
+    cust_id STRING,
+    cust_name STRING,
+    order_id STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+
+-- Order Information Table
+CREATE TABLE order_info (
+    order_id STRING,
+    item_id STRING,
+    quantity INT
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+
+-- Item Information Table
+CREATE TABLE item_info (
+    item_id STRING,
+    item_name STRING,
+    item_price DOUBLE
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+
+--------------------
+
+ Part b. Load Data from Local Storage ->>>
+
+customer_info.csv -
+C1,Amit,O1
+C2,Rahul,O2
+C3,Neha,O3
+order_info-
+O1,I1,2
+O2,I2,1
+O3,I3,5
+item_info-
+I1,Pen,10.0
+I2,Notebook,25.0
+I3,Marker,15.0
+
+LOAD DATA LOCAL INPATH '/home/cloudera/data/customer_info.csv' INTO TABLE customer_info;
+LOAD DATA LOCAL INPATH '/home/cloudera/data/order_info.csv' INTO TABLE order_info;
+LOAD DATA LOCAL INPATH '/home/cloudera/data/item_info.csv' INTO TABLE item_info;
+
+----------------------
+
+Part c. Perform JOIN on Tables in Hive
+Join all tables to get full order + customer info
+
+SELECT 
+    ci.cust_id,
+    ci.cust_name,
+    oi.order_id,
+    ii.item_name,
+    oi.quantity,
+    ii.item_price,
+    (oi.quantity * ii.item_price) AS total_price
+FROM customer_info ci
+JOIN order_info oi ON ci.order_id = oi.order_id
+JOIN item_info ii ON oi.item_id = ii.item_id;
+
+verification- 
+SELECT 
+    COUNT(*)
+FROM customer_info ci
+JOIN order_info oi ON ci.order_id = oi.order_id
+JOIN item_info ii ON oi.item_id = ii.item_id;
+
+
+------------------
+Part d. Create Index on Customer Info
+
+CREATE INDEX idx_customer_id
+ON TABLE customer_info (cust_id)
+AS 'COMPACT'
+WITH DEFERRED REBUILD;
+
+-- (Optional) Build index now
+ALTER INDEX idx_customer_id ON customer_info REBUILD;
+
+--------------------------
+Part e. Total and Average Sales
+
+SELECT 
+    SUM(oi.quantity * ii.item_price) AS total_sales,
+    AVG(oi.quantity * ii.item_price) AS average_sales
+FROM order_info oi
+JOIN item_info ii ON oi.item_id = ii.item_id;
+
+----------------
+ Part f. Order Details with Maximum Cost
+SELECT 
+    ci.cust_id,
+    ci.cust_name,
+    oi.order_id,
+    ii.item_name,
+    oi.quantity,
+    ii.item_price,
+    (oi.quantity * ii.item_price) AS total_price
+FROM customer_info ci
+JOIN order_info oi ON ci.order_id = oi.order_id
+JOIN item_info ii ON oi.item_id = ii.item_id
+ORDER BY total_price DESC
+LIMIT 1;
+
+-------------------
+Part g. Create External Hive Table Connected to HBase
+step 1 ->>
+hbase shell
+create 'hbase_customer_info', 'cf'
+put 'hbase_customer_info', 'C1', 'cf:name', 'Amit'
+put 'hbase_customer_info', 'C1', 'cf:orderid', 'O1'
+put 'hbase_customer_info', 'C2', 'cf:name', 'Rahul'
+put 'hbase_customer_info', 'C2', 'cf:orderid', 'O2'
+put 'hbase_customer_info', 'C3', 'cf:name', 'Neha'
+put 'hbase_customer_info', 'C3', 'cf:orderid', 'O3'
+exit
+Step 2: Create External Hive Table ->>
+CREATE EXTERNAL TABLE hbase_customer_info (
+    cust_id STRING,
+    cust_name STRING,
+    order_id STRING
+)
+STORED BY 'org.apache.hadoop.hive.hbase.HBaseStorageHandler'
+WITH SERDEPROPERTIES (
+    "hbase.columns.mapping" = ":key,cf:name,cf:orderid"
+)
+TBLPROPERTIES (
+    "hbase.table.name" = "hbase_customer_info"
+);
+
+------------------------------
+ Part h. Display Records of Customer Info Table from HBase
+SELECT * FROM hbase_customer_info;

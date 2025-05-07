@@ -1,0 +1,121 @@
+create 'flight', 'finfo', 'fsch', 'fact'
+
+put 'flight', '1', 'finfo:source', 'pune'
+put 'flight', '1', 'finfo:dest', 'mumbai'
+put 'flight', '1', 'fsch:dt', '2025-05-07 10:30:00'
+put 'flight', '1', 'fsch:at', '2025-05-07 11:15:00'
+put 'flight', '1', 'fact:actdt', '2025-05-07 10:35:00'
+put 'flight', '1', 'fact:actat', '2025-05-07 11:20:00'
+
+put 'flight', '2', 'finfo:source', 'delhi'
+put 'flight', '2', 'finfo:dest', 'bangalore'
+put 'flight', '2', 'fsch:dt', '2025-05-07 11:05:00'
+put 'flight', '2', 'fsch:at', '2025-05-07 14:00:00'
+put 'flight', '2', 'fact:actdt', '2025-05-07 11:15:00'
+put 'flight', '2', 'fact:actat', '2025-05-07 14:10:00'
+
+put 'flight', '3', 'finfo:source', 'chennai'
+put 'flight', '3', 'finfo:dest', 'kolkata'
+put 'flight', '3', 'fsch:dt', '2025-05-07 09:35:00'
+put 'flight', '3', 'fsch:at', '2025-05-07 12:00:00'
+put 'flight', '3', 'fact:actdt', '2025-05-07 09:40:00'
+put 'flight', '3', 'fact:actat', '2025-05-07 12:05:00'
+
+put 'flight', '4', 'finfo:source', 'mumbai'
+put 'flight', '4', 'finfo:dest', 'hyderabad'
+put 'flight', '4', 'fsch:dt', '2025-05-07 15:05:00'
+put 'flight', '4', 'fsch:at', '2025-05-07 16:30:00'
+put 'flight', '4', 'fact:actdt', '2025-05-07 15:15:00'
+put 'flight', '4', 'fact:actat', '2025-05-07 16:40:00'
+
+put 'flight', '5', 'finfo:source', 'bangalore'
+put 'flight', '5', 'finfo:dest', 'delhi'
+put 'flight', '5', 'fsch:dt', '2025-05-07 19:35:00'
+put 'flight', '5', 'fsch:at', '2025-05-07 22:30:00'
+put 'flight', '5', 'fact:actdt', '2025-05-07 19:45:00'
+put 'flight', '5', 'fact:actat', '2025-05-07 22:40:00'
+
+put 'flight', '6', 'finfo:source', 'kolkata'
+put 'flight', '6', 'finfo:dest', 'chennai'
+put 'flight', '6', 'fsch:dt', '2025-05-07 05:20:00'
+put 'flight', '6', 'fsch:at', '2025-05-07 07:45:00'
+put 'flight', '6', 'fact:actdt', '2025-05-07 05:25:00'
+put 'flight', '6', 'fact:actat', '2025-05-07 07:50:00'
+
+put 'flight', '7', 'finfo:source', 'hyderabad'
+put 'flight', '7', 'finfo:dest', 'pune'
+put 'flight', '7', 'fsch:dt', '2025-05-07 08:05:00'
+put 'flight', '7', 'fsch:at', '2025-05-07 09:30:00'
+put 'flight', '7', 'fact:actdt', '2025-05-07 08:15:00'
+put 'flight', '7', 'fact:actat', '2025-05-07 09:40:00'
+
+put 'flight', '8', 'finfo:source', 'ahmedabad'
+put 'flight', '8', 'finfo:dest', 'mumbai'
+put 'flight', '8', 'fsch:dt', '2025-05-07 14:50:00'
+put 'flight', '8', 'fsch:at', '2025-05-07 15:45:00'
+put 'flight', '8', 'fact:actdt', '2025-05-07 15:00:00'
+put 'flight', '8', 'fact:actat', '2025-05-07 15:55:00'
+
+put 'flight', '9', 'finfo:source', 'goa'
+put 'flight', '9', 'finfo:dest', 'bangalore'
+put 'flight', '9', 'fsch:dt', '2025-05-07 18:15:00'
+put 'flight', '9', 'fsch:at', '2025-05-07 19:15:00'
+put 'flight', '9', 'fact:actdt', '2025-05-07 18:25:00'
+put 'flight', '9', 'fact:actat', '2025-05-07 19:25:00'
+
+put 'flight', '10', 'finfo:source', 'kochi'
+put 'flight', '10', 'finfo:dest', 'delhi'
+put 'flight', '10', 'fsch:dt', '2025-05-07 04:05:00'
+put 'flight', '10', 'fsch:at', '2025-05-07 07:15:00'
+put 'flight', '10', 'fact:actdt', '2025-05-07 04:15:00'
+put 'flight', '10', 'fact:actat', '2025-05-07 07:25:00'
+
+scan 'flight'
+
+-----------------
+
+hbase shell
+
+create 'test_flight', 'data'
+alter 'test_flight', {NAME => 'extra'}
+describe 'test_flight'
+disable 'test_flight'
+drop 'test_flight'
+list
+exit
+
+------------------
+CREATE DATABASE flight_db;
+USE flight_db;
+
+CREATE EXTERNAL TABLE flight_hive (
+    rowkey STRING,
+    source STRING,
+    destination STRING,
+    scheduled_departure STRING,
+    actual_departure STRING,
+    scheduled_arrival STRING,
+    actual_arrival STRING
+)
+STORED BY 'org.apache.hadoop.hive.hbase.HBaseStorageHandler'
+WITH SERDEPROPERTIES (
+    'hbase.columns.mapping' = ':key,finfo:source,finfo:dest,fsch:dt,fact:actdt,fsch:at,fact:actat'
+)
+TBLPROPERTIES ('hbase.table.name' = 'flight');
+
+
+SELECT * FROM flight_hive;
+
+
+--------
+Calculate Total Departure Delay-----
+SELECT SUM(unix_timestamp(actual_departure, 'yyyy-MM-dd HH:mm:ss') - unix_timestamp(scheduled_departure, 'yyyy-MM-dd HH:mm:ss')) AS total_departure_delay
+FROM flight_hive;
+
+-------
+Find the Average Departure Delay in Hive --
+SELECT AVG(unix_timestamp(actual_departure, 'yyyy-MM-dd HH:mm:ss') - unix_timestamp(scheduled_departure, 'yyyy-MM-dd HH:mm:ss')) AS avg_departure_delay
+FROM flight_hive;
+
+--------------
+create index on flight info table - 
